@@ -90,10 +90,14 @@ let paintingsGroup;
 let lastSpawnedPaintingY = 300;
 let lastPaintingId = 0;
 let paintEmitter;
+let chronorouage;
+let chronorouageText;
+let chronorouageSpawned = false;
 
 function preload() {
     this.load.image('debout', 'img/Debout.png');
     this.load.image('accroupis', 'img/Accroupis.png');
+    this.load.image('chronorouage', 'img/piece3.png');
     // On ne charge plus de fichier externe pour le fond
 }
 
@@ -103,6 +107,7 @@ function create() {
     hasStartedClimbing = false;
     isBoosted = false;
     hasWon = false;
+    chronorouageSpawned = false;
     lastBrushLineCounter = -5; // Un pinceau peut apparaître assez tôt au démarrage
 
     // L'outil de dessin pour toutes nos créations procédurales
@@ -380,8 +385,8 @@ function create() {
     deadlyPlatforms = this.physics.add.staticGroup();
 
     // Create initial platforms
-    platforms.create(200, logicHeight - 20, 'platform_start'); // Plateforme de départ pleine largeur
-    lastSpawnedY = logicHeight - 20;
+    platforms.create(200, logicHeight - 10, 'platform_start'); // Plateforme de départ pleine largeur (plus bas)
+    lastSpawnedY = logicHeight - 10;
     lineCounter = 0;
 
     // Astuce : La première plateforme sera toujours générée bien à droite ou bien à gauche
@@ -395,8 +400,8 @@ function create() {
         createLevelLayer(lastSpawnedY);
     }
 
-    // Player (départ posé proprement sur la base sans gravité)
-    player = this.physics.add.sprite(200, logicHeight - 40, 'debout');
+    // Player (départ posé proprement sur la base sans gravité - plus bas)
+    player = this.physics.add.sprite(200, logicHeight - 30, 'debout');
     // Scale player
     player.setScale(0.15);
     player.setOrigin(0.5, 1);
@@ -422,8 +427,7 @@ function create() {
 
     this.physics.add.overlap(player, brushes, collectBrush, null, this);
 
-    // Camera (lerp Y at 0.1 for smooth vertical follow)
-    this.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
+    // Camera - ne suit pas encore le joueur au départ
     this.cameras.main.setDeadzone(0, 200);
 
     // UI
@@ -567,6 +571,47 @@ function update() {
                 score = Math.floor(Math.abs(highestY - startY) / 10); // Divisé par 10 pour une progression plus douce
             }
             scoreText.setText(score);
+
+            // À partir de 500, afficher le message et spawner le Chronorouage
+            if (score >= 500 && !chronorouageSpawned) {
+                chronorouageSpawned = true;
+                
+                // Afficher le texte "Attrapez le Chronorouage"
+                chronorouageText = this.add.text(200, 80, 'Attrapez le Chronorouage !', {
+                    fontSize: '22px',
+                    fontFamily: 'Impact, Arial Black, sans-serif',
+                    fill: '#FFD700',
+                    stroke: '#000000',
+                    strokeThickness: 4
+                }).setScrollFactor(0).setOrigin(0.5, 0).setDepth(100);
+                
+                // Animation du texte
+                this.tweens.add({
+                    targets: chronorouageText,
+                    scale: { from: 0.8, to: 1.1 },
+                    yoyo: true,
+                    repeat: -1,
+                    duration: 500
+                });
+                
+                // Spawner le Chronorouage un peu plus haut que le joueur
+                chronorouage = this.physics.add.sprite(200, highestY - 400, 'chronorouage');
+                chronorouage.setScale(0.15);
+                chronorouage.body.allowGravity = false;
+                chronorouage.setDepth(50);
+                
+                // Animation de rotation
+                this.tweens.add({
+                    targets: chronorouage,
+                    angle: 360,
+                    repeat: -1,
+                    duration: 2000,
+                    ease: 'Linear'
+                });
+                
+                // Collision avec le joueur
+                this.physics.add.overlap(player, chronorouage, collectChronorouage, null, this);
+            }
 
             // Condition de victoire !
             if (score >= 550 && !hasWon) {
@@ -738,7 +783,13 @@ function jumpOnPlatform(player, platform) {
     // Si le joueur est déjà expédié en haut par un bonus, on ignore
     if (player.body.velocity.y < -100) return;
 
-    if (platform.y < logicHeight - 50) hasStartedClimbing = true; // Activer le score !
+    if (platform.y < logicHeight - 50) {
+        if (!hasStartedClimbing) {
+            hasStartedClimbing = true;
+            // Activer le suivi de caméra maintenant
+            player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
+        }
+    }
 
     player.setVelocityY(-450); // Jump normal
     player.setTexture('debout');
@@ -747,7 +798,13 @@ function jumpOnPlatform(player, platform) {
 function jumpOnBreakablePlatform(player, platform) {
     if (player.body.velocity.y < -100) return; // Ignorer si propulsé
 
-    if (platform.y < logicHeight - 50) hasStartedClimbing = true; // Activer le score !
+    if (platform.y < logicHeight - 50) {
+        if (!hasStartedClimbing) {
+            hasStartedClimbing = true;
+            // Activer le suivi de caméra maintenant
+            this.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
+        }
+    }
 
     player.setVelocityY(-450); // Maintient la hauteur de saut
     player.setTexture('debout');
@@ -765,7 +822,10 @@ function jumpOnBreakablePlatform(player, platform) {
 }
 
 function collectBrush(player, brush) {
-    hasStartedClimbing = true;
+    if (!hasStartedClimbing) {
+        hasStartedClimbing = true;
+        player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
+    }
     isBoosted = true; // Déclenche l'immunité et le pouvoir de traverser les obstacles
     player.setVelocityY(-900); // SUPER PROPULSION D'ARTISTE !
     brush.destroy();
@@ -774,4 +834,13 @@ function collectBrush(player, brush) {
     if (paintEmitter) {
         paintEmitter.start();
     }
+}
+
+function collectChronorouage(player, chrono) {
+    chrono.destroy();
+    if (chronorouageText) {
+        chronorouageText.destroy();
+    }
+    hasWon = true;
+    triggerWin(player.scene);
 }
