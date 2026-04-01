@@ -98,6 +98,137 @@ let chronorouageFlying = false;
 let chronorouageStopped = false;
 let chronorouageTargetY = 0;
 
+// Système de sons
+let audioContext = null;
+
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+}
+
+function playBounceSound() {
+    if (!audioContext) return;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(300, audioContext.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(500, audioContext.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.15);
+}
+
+function playBreakSound() {
+    if (!audioContext) return;
+    // Son de bois qui craque avec du bruit
+    const bufferSize = audioContext.sampleRate * 0.3;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    }
+    const noise = audioContext.createBufferSource();
+    noise.buffer = buffer;
+    
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(800, audioContext.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.2);
+    
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.5, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+    
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioContext.destination);
+    noise.start(audioContext.currentTime);
+}
+
+function playBoostSound() {
+    if (!audioContext) return;
+    // Son de power-up ascendant
+    const osc = audioContext.createOscillator();
+    const osc2 = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sine';
+    osc2.type = 'sine';
+    osc.connect(gain);
+    osc2.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(400, audioContext.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.3);
+    osc2.frequency.setValueAtTime(600, audioContext.currentTime);
+    osc2.frequency.exponentialRampToValueAtTime(1800, audioContext.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.25, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+    osc.start(audioContext.currentTime);
+    osc2.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.4);
+    osc2.stop(audioContext.currentTime + 0.4);
+}
+
+function playChronorouageSound() {
+    if (!audioContext) return;
+    // Son magique/mystique pour l'apparition
+    const notes = [880, 1100, 880, 1320];
+    notes.forEach((freq, i) => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime + i * 0.12);
+        gain.gain.setValueAtTime(0, audioContext.currentTime + i * 0.12);
+        gain.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + i * 0.12 + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.12 + 0.2);
+        osc.start(audioContext.currentTime + i * 0.12);
+        osc.stop(audioContext.currentTime + i * 0.12 + 0.25);
+    });
+}
+
+function playWinSound() {
+    if (!audioContext) return;
+    const notes = [523, 659, 784, 1047]; // Do Mi Sol Do (accord majeur)
+    notes.forEach((freq, i) => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        gain.gain.setValueAtTime(0, audioContext.currentTime + i * 0.15);
+        gain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + i * 0.15 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.15 + 0.4);
+        osc.start(audioContext.currentTime + i * 0.15);
+        osc.stop(audioContext.currentTime + i * 0.15 + 0.4);
+    });
+}
+
+function playGameOverSound() {
+    if (!audioContext) return;
+    const notes = [400, 350, 300, 200]; // Notes descendantes tristes
+    notes.forEach((freq, i) => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'triangle';
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        gain.gain.setValueAtTime(0, audioContext.currentTime + i * 0.2);
+        gain.gain.linearRampToValueAtTime(0.25, audioContext.currentTime + i * 0.2 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.2 + 0.3);
+        osc.start(audioContext.currentTime + i * 0.2);
+        osc.stop(audioContext.currentTime + i * 0.2 + 0.3);
+    });
+}
+
 function preload() {
     this.load.image('debout', 'img/Debout.png');
     this.load.image('accroupis', 'img/Accroupis.png');
@@ -532,6 +663,9 @@ function update() {
     // Player horizontal movement (Slide / Drag)
     let activePointer = this.input.activePointer;
     if (activePointer.isDown) {
+        // Initialiser l'audio au premier toucher
+        initAudio();
+        
         if (!isDragging) {
             isDragging = true;
             lastPointerX = activePointer.x;
@@ -607,6 +741,7 @@ function update() {
                 });
                 
                 // Spawner le Chronorouage volant dans une bulle
+                playChronorouageSound();
                 spawnFlyingChronorouage(this, highestY);
             }
             
@@ -615,6 +750,7 @@ function update() {
                 chronorouage.destroy();
                 if (chronorouageBubble) chronorouageBubble.destroy();
                 // Respawn une nouvelle bulle qui monte
+                playChronorouageSound();
                 spawnFlyingChronorouage(this, highestY + 200);
             }
         }
@@ -684,6 +820,7 @@ function update() {
 function triggerGameOver(scene) {
     if (gameOver) return;
     gameOver = true;
+    playGameOverSound();
     player.setTint(0xff0000); // Peint le joueur en rouge
     player.setVelocity(0, 0);
 
@@ -721,6 +858,7 @@ function triggerGameOver(scene) {
 
 function triggerWin(scene) {
     hasWon = true;
+    playWinSound();
 
     // Fige intégralement le moteur physique pour un freeze épique
     scene.physics.pause();
@@ -785,6 +923,7 @@ function jumpOnPlatform(player, platform) {
 
     if (platform.y < logicHeight - 100) hasStartedClimbing = true;
 
+    playBounceSound();
     player.setVelocityY(-450); // Jump normal
     player.setTexture('debout');
 }
@@ -794,10 +933,12 @@ function jumpOnBreakablePlatform(player, platform) {
 
     if (platform.y < logicHeight - 100) hasStartedClimbing = true;
 
+    playBounceSound();
     player.setVelocityY(-450); // Maintient la hauteur de saut
     player.setTexture('debout');
 
     // Animation détaillée de la planche brune qui cède
+    playBreakSound();
     platform.body.enable = false; // Ne plus bloquer
     this.tweens.add({
         targets: platform,
@@ -812,6 +953,7 @@ function jumpOnBreakablePlatform(player, platform) {
 function collectBrush(player, brush) {
     hasStartedClimbing = true;
     isBoosted = true; // Déclenche l'immunité et le pouvoir de traverser les obstacles
+    playBoostSound();
     player.setVelocityY(-900); // SUPER PROPULSION D'ARTISTE !
     brush.destroy();
 
