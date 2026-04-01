@@ -1,5 +1,9 @@
 const config = {
     type: Phaser.AUTO,
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    },
     width: 400,
     height: 600,
     parent: 'game-container',
@@ -461,6 +465,17 @@ function update() {
     } else if (cursors.right.isDown) {
         player.setVelocityX(200);
         player.flipX = false;
+    } else if (this.input.activePointer.isDown) {
+        let diff = this.input.activePointer.x - player.x;
+        if (diff < -10) {
+            player.setVelocityX(-200);
+            player.flipX = true;
+        } else if (diff > 10) {
+            player.setVelocityX(200);
+            player.flipX = false;
+        } else {
+            player.setVelocityX(0);
+        }
     } else {
         player.setVelocityX(0);
     }
