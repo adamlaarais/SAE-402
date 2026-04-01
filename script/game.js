@@ -44,7 +44,101 @@ const config = {
     }
 };
 
-const game = new Phaser.Game(config);
+let game = null;
+let isPaused = false;
+let currentScene = null;
+
+// Écran de démarrage et menu pause
+document.addEventListener('DOMContentLoaded', () => {
+    const startButton = document.getElementById('start-button');
+    const startScreen = document.getElementById('start-screen');
+    const burgerIcon = document.getElementById('burger-icon');
+    const pauseMenu = document.getElementById('pause-menu');
+    const menuHome = document.getElementById('menu-home');
+    const menuContinue = document.getElementById('menu-continue');
+    const menuRestart = document.getElementById('menu-restart');
+    
+    startButton.addEventListener('click', () => {
+        startScreen.style.display = 'none';
+        burgerIcon.classList.add('visible');
+        initAudio();
+        if (!game) {
+            game = new Phaser.Game(config);
+        }
+    });
+    
+    // Ouvrir le menu pause
+    burgerIcon.addEventListener('click', () => {
+        if (game && currentScene && !gameOver && !hasWon) {
+            isPaused = true;
+            pauseMenu.classList.add('visible');
+            if (currentScene.physics) {
+                currentScene.physics.pause();
+            }
+        }
+    });
+    
+    // Menu Continuer - reprendre le jeu
+    menuContinue.addEventListener('click', () => {
+        pauseMenu.classList.remove('visible');
+        
+        if (game && currentScene && currentScene.physics && !gameOver && !hasWon) {
+            currentScene.physics.resume();
+            isPaused = false;
+        }
+    });
+    
+    // Menu Redémarrer - recommencer la partie
+    menuRestart.addEventListener('click', () => {
+        pauseMenu.classList.remove('visible');
+        
+        // Reset des variables
+        resetGameVariables();
+        
+        if (game && currentScene) {
+            currentScene.physics.resume();
+            isPaused = false;
+            currentScene.scene.restart();
+        }
+    });
+    
+    // Menu Accueil - retour à l'écran de démarrage
+    menuHome.addEventListener('click', () => {
+        pauseMenu.classList.remove('visible');
+        burgerIcon.classList.remove('visible');
+        
+        if (game) {
+            game.destroy(true);
+            game = null;
+        }
+        
+        // Reset des variables
+        resetGameVariables();
+        
+        startScreen.style.display = 'flex';
+        isPaused = false;
+    });
+});
+
+// Reset des variables du jeu
+function resetGameVariables() {
+    score = 0;
+    hasStartedClimbing = false;
+    isBoosted = false;
+    lastBrushLineCounter = 0;
+    gameOver = false;
+    hasWon = false;
+    lastPlatformX = 200;
+    lastSpawnedY = 0;
+    lineCounter = 0;
+    stairDirection = 1;
+    lastSpawnedPaintingY = 300;
+    lastPaintingId = 0;
+    chronorouageSpawned = false;
+    chronorouageFlying = false;
+    chronorouageStopped = false;
+    isPaused = false;
+}
 
 // Gérer les changements de viewport (barre d'adresse mobile)
 function handleViewportResize() {
@@ -237,6 +331,7 @@ function preload() {
 }
 
 function create() {
+    currentScene = this;
     gameOver = false;
     score = 0;
     hasStartedClimbing = false;
@@ -508,12 +603,19 @@ function create() {
     graphics.fillStyle(0x104E8B); graphics.fillRoundedRect(4, 4, 172, 42, 5);
     graphics.generateTexture('ui_button_blue', 185, 55);
 
-    // Bouton de musée Rouge (Rejouer)
+    // Bouton de musée Rouge (Accueil)
     graphics.clear();
     graphics.fillStyle(0x333333, 0.3); graphics.fillRoundedRect(3, 3, 180, 50, 8);
-    graphics.fillStyle(0x8B0000); graphics.fillRoundedRect(0, 0, 180, 50, 8);
-    graphics.fillStyle(0x5C0000); graphics.fillRoundedRect(4, 4, 172, 42, 5);
+    graphics.fillStyle(0xc0392b); graphics.fillRoundedRect(0, 0, 180, 50, 8);
+    graphics.fillStyle(0x96281B); graphics.fillRoundedRect(4, 4, 172, 42, 5);
     graphics.generateTexture('ui_button_red', 185, 55);
+
+    // Bouton de musée Doré (Rejouer)
+    graphics.clear();
+    graphics.fillStyle(0x333333, 0.3); graphics.fillRoundedRect(3, 3, 180, 50, 8);
+    graphics.fillStyle(0xDAA520); graphics.fillRoundedRect(0, 0, 180, 50, 8);
+    graphics.fillStyle(0x8B6508); graphics.fillRoundedRect(4, 4, 172, 42, 5);
+    graphics.generateTexture('ui_button_gold', 185, 55);
 
     // Groups
     platforms = this.physics.add.staticGroup();
@@ -834,26 +936,43 @@ function triggerGameOver(scene) {
     let panel = scene.add.image(200, logicHeight / 2, 'ui_panel').setScrollFactor(0);
     overUI.add(panel);
 
-    // Titre
-    let title = scene.add.text(200, logicHeight / 2 - 100, 'GAME OVER', {
-        fontSize: '42px', fontFamily: 'Impact, Arial Black', fill: '#8B0000'
+    // Cadre intérieur doré
+    let innerFrame = scene.add.rectangle(200, logicHeight / 2, 270, 230, 0x000000, 0)
+        .setStrokeStyle(2, 0xC4A574)
+        .setScrollFactor(0);
+    overUI.add(innerFrame);
+
+    // Titre avec style doré
+    let title = scene.add.text(200, logicHeight / 2 - 80, 'GAME OVER', {
+        fontSize: '38px', fontFamily: 'Impact, Arial Black', fill: '#DAA520', stroke: '#8B6508', strokeThickness: 4
     }).setOrigin(0.5).setScrollFactor(0);
 
-    let scoreT = scene.add.text(200, logicHeight / 2 - 40, 'Score: ' + score, {
-        fontSize: '26px', fontFamily: 'Arial, sans-serif', fill: '#333333', fontStyle: 'bold'
+    let scoreT = scene.add.text(200, logicHeight / 2 - 25, 'Score: ' + score, {
+        fontSize: '24px', fontFamily: 'Georgia, serif', fill: '#4a3728', fontStyle: 'italic'
     }).setOrigin(0.5).setScrollFactor(0);
 
-    // Bouton de redémarrage
-    let btnRestartBg = scene.add.image(200, logicHeight / 2 + 60, 'ui_button_red').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnRestartText = scene.add.text(200, logicHeight / 2 + 60, 'Rejouer', {
-        fontSize: '24px', fill: '#FFF', fontFamily: 'Arial', fontStyle: 'bold'
+    // Bouton Rejouer (bleu)
+    let btnRestartBg = scene.add.image(200, logicHeight / 2 + 40, 'ui_button_blue').setInteractive({ useHandCursor: true }).setScrollFactor(0);
+    let btnRestartText = scene.add.text(200, logicHeight / 2 + 40, 'Rejouer', {
+        fontSize: '22px', fill: '#FFF', fontFamily: 'Georgia, serif', fontStyle: 'bold'
     }).setOrigin(0.5).setScrollFactor(0);
 
     btnRestartBg.on('pointerdown', () => {
         scene.scene.restart();
     });
 
-    overUI.addMultiple([title, scoreT, btnRestartBg, btnRestartText]);
+    // Bouton Accueil (rouge)
+    let btnHomeBg = scene.add.image(200, logicHeight / 2 + 100, 'ui_button_red').setInteractive({ useHandCursor: true }).setScrollFactor(0);
+    let btnHomeText = scene.add.text(200, logicHeight / 2 + 100, 'Accueil', {
+        fontSize: '22px', fill: '#FFF', fontFamily: 'Georgia, serif', fontStyle: 'bold'
+    }).setOrigin(0.5).setScrollFactor(0);
+
+    btnHomeBg.on('pointerdown', () => {
+        // Retour à l'accueil
+        document.getElementById('menu-home').click();
+    });
+
+    overUI.addMultiple([title, scoreT, innerFrame, btnRestartBg, btnRestartText, btnHomeBg, btnHomeText]);
 }
 
 function triggerWin(scene) {
@@ -866,27 +985,34 @@ function triggerWin(scene) {
     let winUI = scene.add.group();
 
     // Fond assombri fixé à la fenêtre
-    let bg = scene.add.rectangle(200, logicHeight / 2, 400, logicHeight, 0x000000, 0.7).setOrigin(0.5).setScrollFactor(0);
+    let bg = scene.add.rectangle(200, logicHeight / 2, 400, logicHeight, 0x000000, 0.75).setOrigin(0.5).setScrollFactor(0);
     winUI.add(bg);
 
     // Beau Panneau Doré (Cartel)
     let panel = scene.add.image(200, logicHeight / 2, 'ui_panel').setScrollFactor(0);
     winUI.add(panel);
 
+    // Cadre intérieur doré
+    let innerFrame = scene.add.rectangle(200, logicHeight / 2, 270, 230, 0x000000, 0)
+        .setStrokeStyle(2, 0xC4A574)
+        .setScrollFactor(0);
+    winUI.add(innerFrame);
+
     // Titre éclatant
-    let title = scene.add.text(200, logicHeight / 2 - 110, 'VICTOIRE !', {
-        fontSize: '44px', fontFamily: 'Impact, Arial Black', fill: '#DAA520', stroke: '#8B6508', strokeThickness: 4
+    let title = scene.add.text(200, logicHeight / 2 - 90, 'VICTOIRE !', {
+        fontSize: '38px', fontFamily: 'Impact, Arial Black', fill: '#DAA520', stroke: '#8B6508', strokeThickness: 4
     }).setOrigin(0.5).setScrollFactor(0);
 
-    let subtitle = scene.add.text(200, logicHeight / 2 - 60, '550 Points Atteints', {
-        fontSize: '22px', fontFamily: 'Arial', fill: '#333333', fontStyle: 'italic'
+    let subtitle = scene.add.text(200, logicHeight / 2 - 40, 'Chronorouage Récupéré !', {
+        fontSize: '18px', fontFamily: 'Georgia, serif', fill: '#4a3728', fontStyle: 'italic'
     }).setOrigin(0.5).setScrollFactor(0);
 
     // --- Les Magnifiques Boutons de Choix ---
 
+    // Bouton Continuer (bleu)
     let btnContinueBg = scene.add.image(200, logicHeight / 2 + 20, 'ui_button_blue').setInteractive({ useHandCursor: true }).setScrollFactor(0);
     let btnContinueText = scene.add.text(200, logicHeight / 2 + 20, 'Continuer', {
-        fontSize: '22px', fill: '#FFF', fontFamily: 'Arial', fontStyle: 'bold'
+        fontSize: '22px', fill: '#FFF', fontFamily: 'Georgia, serif', fontStyle: 'bold'
     }).setOrigin(0.5).setScrollFactor(0);
 
     btnContinueBg.on('pointerdown', () => {
@@ -894,16 +1020,17 @@ function triggerWin(scene) {
         scene.physics.resume(); // La magie du saut reprend !
     });
 
-    let btnRestartBg = scene.add.image(200, logicHeight / 2 + 90, 'ui_button_red').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnRestartText = scene.add.text(200, logicHeight / 2 + 90, 'Rejouer', {
-        fontSize: '22px', fill: '#FFF', fontFamily: 'Arial', fontStyle: 'bold'
+    // Bouton Rejouer (doré)
+    let btnRestartBg = scene.add.image(200, logicHeight / 2 + 80, 'ui_button_gold').setInteractive({ useHandCursor: true }).setScrollFactor(0);
+    let btnRestartText = scene.add.text(200, logicHeight / 2 + 80, 'Rejouer', {
+        fontSize: '22px', fill: '#FFF', fontFamily: 'Georgia, serif', fontStyle: 'bold'
     }).setOrigin(0.5).setScrollFactor(0);
 
     btnRestartBg.on('pointerdown', () => {
         scene.scene.restart(); // Refait le niveau complet !
     });
 
-    winUI.addMultiple([title, subtitle, btnContinueBg, btnContinueText, btnRestartBg, btnRestartText]);
+    winUI.addMultiple([title, subtitle, innerFrame, btnContinueBg, btnContinueText, btnRestartBg, btnRestartText]);
 }
 
 function hitDeadlyPlatform(player, platform) {

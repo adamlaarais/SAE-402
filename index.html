@@ -12,14 +12,58 @@
 </head>
 <body>
     <div id="rotate-message">
-        <div class="rotate-frame"></div>
         <div class="rotate-content">
-            <span class="rotate-icon">🖼️</span>
-            <h2>Le Chef d'Œuvre se contemple autrement...</h2>
+            <div class="rotate-frame"></div>
+            <div class="rotate-icons">
+                <div class="rotate-icon">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g clip-path="url(#clip0_12_2)">
+                        <path d="M3.4285 16C3.4285 16 3 13.5835 3 8.75C3 6.6485 3.081 5.069 3.1725 3.955C3.277 2.685 4.274 1.745 5.5455 1.6675C6.94 1.583 9.058 1.5 12 1.5C14.942 1.5 17.06 1.583 18.4545 1.6675C19.726 1.745 20.723 2.6855 20.8275 3.955C20.919 5.069 21 6.6485 21 8.75C21 13.5835 20.5715 16 20.5715 16" stroke="#4a3728" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="#8B7355"/>
+                        <path d="M20.9095 12.41C20.6843 12.183 20.457 11.9582 20.2275 11.7355C18.0055 9.579 16.4295 8.498 15.501 7.971C15.1968 7.79519 14.8516 7.70262 14.5003 7.70262C14.1489 7.70262 13.8037 7.79519 13.4995 7.971C12.5705 8.498 10.995 9.579 8.77301 11.736C6.86801 13.584 5.67651 15.0225 4.96001 16.0005M1.52501 16.8115C1.58501 16.3405 2.02151 16.1115 2.49651 16.0965C3.67851 16.06 6.45501 16 12 16C17.545 16 20.3215 16.06 21.5035 16.097C21.9785 16.112 22.4155 16.3405 22.4745 16.812C22.4912 16.9363 22.4997 17.0823 22.5 17.25C22.5 17.4185 22.49 17.5635 22.475 17.6885C22.415 18.1595 21.9785 18.3885 21.5035 18.4035C20.3215 18.44 17.545 18.5 12 18.5C6.45501 18.5 3.67851 18.44 2.49651 18.403C2.02151 18.388 1.58451 18.1595 1.52551 17.688C1.50785 17.5427 1.49934 17.3964 1.50001 17.25C1.50001 17.0815 1.51001 16.9365 1.52501 16.8115Z" stroke="#4a3728" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="#C4A574"/>
+                        <path d="M5.4225 18.463L3.777 21.7695C3.6345 22.0555 3.794 22.3995 4.111 22.4415C4.923 22.5495 5.7065 22.4875 6.207 22.42C6.5625 22.372 6.8715 22.167 7.084 21.8775L9.5665 18.496M10.1535 18.4975C10.257 19.8505 10.387 21.1415 10.458 21.8125C10.49 22.115 10.67 22.3715 10.97 22.4245C11.201 22.4655 11.534 22.4995 12.0005 22.4995C12.467 22.4995 12.8 22.4655 13.0305 22.4245C13.3305 22.3715 13.511 22.115 13.543 21.812C13.614 21.142 13.744 19.8505 13.848 18.4975M14.4335 18.496L16.9165 21.8775C17.129 22.167 17.4375 22.3725 17.793 22.42C18.293 22.4875 19.077 22.5495 19.8895 22.4415C20.206 22.3995 20.3655 22.0555 20.223 21.7695L18.5775 18.463M10 6.5C10 7.03043 9.78928 7.53914 9.41421 7.91421C9.03914 8.28929 8.53043 8.5 8 8.5C7.46956 8.5 6.96086 8.28929 6.58578 7.91421C6.21071 7.53914 6 7.03043 6 6.5C6 5.96957 6.21071 5.46086 6.58578 5.08579C6.96086 4.71071 7.46956 4.5 8 4.5C8.53043 4.5 9.03914 4.71071 9.41421 5.08579C9.78928 5.46086 10 5.96957 10 6.5Z" stroke="#4a3728" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="8" cy="6.5" r="2" fill="#f4d03f"/>
+                        </g>
+                        <defs>
+                        <clipPath id="clip0_12_2">
+                        <rect width="24" height="24" fill="white"/>
+                        </clipPath>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+            <h2>Tournez l'Écran !</h2>
             <p>Veuillez tourner votre appareil en mode portrait pour admirer l'exposition.</p>
         </div>
     </div>
+    <div id="start-screen">
+        <div class="start-content">
+            <h1>Le Chef d'Œuvre Perdu</h1>
+            <button id="start-button">Démarrer</button>
+        </div>
+    </div>
     <div id="game-container"></div>
+    
+    <!-- Menu Burger Icon -->
+    <div id="burger-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    
+    <!-- Menu Pause Plein Écran -->
+    <div id="pause-menu">
+        <div class="pause-overlay"></div>
+        <div class="pause-panel">
+            <div class="pause-frame"></div>
+            <h2 class="pause-title">PAUSE</h2>
+            <div class="pause-buttons">
+                <button id="menu-continue" class="pause-btn pause-btn-blue">Continuer</button>
+                <button id="menu-restart" class="pause-btn pause-btn-gold">Redémarrer</button>
+                <button id="menu-home" class="pause-btn pause-btn-red">Accueil</button>
+            </div>
+        </div>
+    </div>
+    
     <script src="script/game.js"></script>
 </body>
 </html>
