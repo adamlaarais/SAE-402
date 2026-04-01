@@ -1,11 +1,15 @@
+let windowRatio = window.innerHeight / window.innerWidth;
+let logicWidth = 400;
+let logicHeight = Math.max(600, logicWidth * windowRatio);
+
 const config = {
     type: Phaser.AUTO,
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
-    width: 400,
-    height: 600,
+    width: logicWidth,
+    height: logicHeight,
     parent: 'game-container',
     physics: {
         default: 'arcade',
@@ -28,10 +32,11 @@ let platforms;
 let movingPlatforms;
 let breakablePlatforms;
 let brushes;
-let cursors;
 let score = 0;
 let scoreText;
 let highestY;
+let isDragging = false;
+let lastPointerX = 0;
 let hasStartedClimbing = false;
 let isBoosted = false;
 let lastBrushLineCounter = 0;
@@ -120,7 +125,7 @@ function create() {
     graphics.generateTexture('museum_bg', 400, 300);
 
     // Initialisation du mur de fond (tout au fond -> Depth -10)
-    background = this.add.tileSprite(200, 300, 400, 600, 'museum_bg').setScrollFactor(0).setDepth(-10);
+    background = this.add.tileSprite(200, logicHeight / 2, 400, logicHeight, 'museum_bg').setScrollFactor(0).setDepth(-10);
 
     // Génération des oeuvres d'art ULTRA-DÉTAILLÉES
     // 1: Grand paysage romantique des Vosges
@@ -322,8 +327,8 @@ function create() {
     deadlyPlatforms = this.physics.add.staticGroup();
 
     // Create initial platforms
-    platforms.create(200, 580, 'platform'); // Base platform
-    lastSpawnedY = 580;
+    platforms.create(200, logicHeight - 20, 'platform'); // Base platform
+    lastSpawnedY = logicHeight - 20;
     lineCounter = 0;
 
     // Astuce : La première plateforme sera toujours générée bien à droite ou bien à gauche
@@ -331,13 +336,14 @@ function create() {
     lastPlatformX = Math.random() < 0.5 ? -100 : 500;
     stairDirection = lastPlatformX < 0 ? 1 : -1;
 
-    for (let i = 0; i < 9; i++) { // Un peu plus de plateformes initiales pour combler tout l'écran de départ
-        lastSpawnedY = 480 - (i * 90);
+    let initialPlats = Math.ceil(logicHeight / 90) + 2;
+    for (let i = 0; i < initialPlats; i++) { // Un peu plus de plateformes initiales pour combler tout l'écran de départ
+        lastSpawnedY = (logicHeight - 120) - (i * 90);
         createLevelLayer(lastSpawnedY);
     }
 
     // Player (départ posé proprement sur la base sans gravité)
-    player = this.physics.add.sprite(200, 560, 'debout');
+    player = this.physics.add.sprite(200, logicHeight - 40, 'debout');
     // Scale player
     player.setScale(0.15);
     player.setOrigin(0.5, 1);
@@ -366,9 +372,6 @@ function create() {
     // Camera (lerp Y at 0.1 for smooth vertical follow)
     this.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
     this.cameras.main.setDeadzone(0, 200);
-
-    // Input
-    cursors = this.input.keyboard.createCursorKeys();
 
     // UI
     scoreText = this.add.text(200, 20, '0', {
@@ -458,25 +461,26 @@ function update() {
         background.tilePositionY = this.cameras.main.scrollY * 0.5; // Parallax effect
     }
 
-    // Player horizontal movement
-    if (cursors.left.isDown) {
-        player.setVelocityX(-200);
-        player.flipX = true;
-    } else if (cursors.right.isDown) {
-        player.setVelocityX(200);
-        player.flipX = false;
-    } else if (this.input.activePointer.isDown) {
-        let diff = this.input.activePointer.x - player.x;
-        if (diff < -10) {
-            player.setVelocityX(-200);
-            player.flipX = true;
-        } else if (diff > 10) {
-            player.setVelocityX(200);
-            player.flipX = false;
+    // Player horizontal movement (Slide / Drag)
+    let activePointer = this.input.activePointer;
+    if (activePointer.isDown) {
+        if (!isDragging) {
+            isDragging = true;
+            lastPointerX = activePointer.x;
         } else {
-            player.setVelocityX(0);
+            let delta = activePointer.x - lastPointerX;
+            
+            // Déplacement relatif très fluide
+            player.x += delta * 1.5; 
+            
+            if (delta < -0.5) player.flipX = true;
+            else if (delta > 0.5) player.flipX = false;
+            
+            lastPointerX = activePointer.x;
         }
+        player.setVelocityX(0);
     } else {
+        isDragging = false;
         player.setVelocityX(0);
     }
 
@@ -505,7 +509,10 @@ function update() {
 
         // Bloquer le score à 0 tant qu'on n'a pas franchi la plateforme de départ
         if (hasStartedClimbing) {
-            score = Math.floor(Math.abs(highestY - 500) / 10); // Divisé par 10 pour une progression plus douce
+            let startY = logicHeight - 100;
+            if (highestY < startY) {
+                score = Math.floor(Math.abs(highestY - startY) / 10); // Divisé par 10 pour une progression plus douce
+            }
             scoreText.setText(score);
 
             // Condition de victoire !
@@ -515,7 +522,7 @@ function update() {
         }
 
         // Generate new platforms fluidly (while loop ensures no gaps if frame drops)
-        let nextGenY = highestY - 600;
+        let nextGenY = highestY - logicHeight;
         while (lastSpawnedY > nextGenY) {
             lastSpawnedY = lastSpawnedY - 90; // Sauts strictement identiques, aucune variation
             createLevelLayer(lastSpawnedY);
@@ -542,8 +549,9 @@ function update() {
     }
 
     // Remove old items (plateformes et bobines) et gestion des mouvements
+    let despawnY = this.cameras.main.scrollY + logicHeight + 50;
     platforms.getChildren().forEach(p => {
-        if (p.y > this.cameras.main.scrollY + 650) p.destroy();
+        if (p.y > despawnY) p.destroy();
     });
     movingPlatforms.getChildren().forEach(p => {
         // Gestion du rebond sur les bords
@@ -551,26 +559,26 @@ function update() {
         else if (p.x <= 60) { p.setVelocityX(70); }
 
         // Nettoyage en sortant de l'écran par le bas
-        if (p.y > this.cameras.main.scrollY + 650) p.destroy();
+        if (p.y > despawnY) p.destroy();
     });
     breakablePlatforms.getChildren().forEach(p => {
-        if (p.y > this.cameras.main.scrollY + 650) p.destroy();
+        if (p.y > despawnY) p.destroy();
     });
     deadlyPlatforms.getChildren().forEach(p => {
-        if (p.y > this.cameras.main.scrollY + 650) p.destroy();
+        if (p.y > despawnY) p.destroy();
     });
     brushes.getChildren().forEach(b => {
-        if (b.y > this.cameras.main.scrollY + 650) b.destroy();
+        if (b.y > despawnY) b.destroy();
     });
 
     // Remove old paintings
     paintingsGroup.getChildren().forEach(p => {
-        let wallBottom = this.cameras.main.scrollY * 0.5 + 600;
+        let wallBottom = this.cameras.main.scrollY * 0.5 + logicHeight;
         if (p.y > wallBottom + 200) p.destroy();
     });
 
     // Game Over condition
-    if (player.y > this.cameras.main.scrollY + 650) {
+    if (player.y > despawnY) {
         triggerGameOver(this);
     }
 }
@@ -584,25 +592,25 @@ function triggerGameOver(scene) {
     let overUI = scene.add.group();
 
     // Assombrissement dramatique du décor (fixé fermement à l'écran entier)
-    let bg = scene.add.rectangle(200, 300, 400, 600, 0x000000, 0.7).setOrigin(0.5).setScrollFactor(0);
+    let bg = scene.add.rectangle(200, logicHeight / 2, 400, logicHeight, 0x000000, 0.7).setOrigin(0.5).setScrollFactor(0);
     overUI.add(bg);
 
     // Beau Panneau Doré !
-    let panel = scene.add.image(200, 300, 'ui_panel').setScrollFactor(0);
+    let panel = scene.add.image(200, logicHeight / 2, 'ui_panel').setScrollFactor(0);
     overUI.add(panel);
 
     // Titre
-    let title = scene.add.text(200, 200, 'GAME OVER', {
+    let title = scene.add.text(200, logicHeight / 2 - 100, 'GAME OVER', {
         fontSize: '42px', fontFamily: 'Impact, Arial Black', fill: '#8B0000'
     }).setOrigin(0.5).setScrollFactor(0);
 
-    let scoreT = scene.add.text(200, 260, 'Score: ' + score, {
+    let scoreT = scene.add.text(200, logicHeight / 2 - 40, 'Score: ' + score, {
         fontSize: '26px', fontFamily: 'Arial, sans-serif', fill: '#333333', fontStyle: 'bold'
     }).setOrigin(0.5).setScrollFactor(0);
 
     // Bouton de redémarrage
-    let btnRestartBg = scene.add.image(200, 360, 'ui_button_red').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnRestartText = scene.add.text(200, 360, 'Rejouer', {
+    let btnRestartBg = scene.add.image(200, logicHeight / 2 + 60, 'ui_button_red').setInteractive({ useHandCursor: true }).setScrollFactor(0);
+    let btnRestartText = scene.add.text(200, logicHeight / 2 + 60, 'Rejouer', {
         fontSize: '24px', fill: '#FFF', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5).setScrollFactor(0);
 
@@ -622,26 +630,26 @@ function triggerWin(scene) {
     let winUI = scene.add.group();
 
     // Fond assombri fixé à la fenêtre
-    let bg = scene.add.rectangle(200, 300, 400, 600, 0x000000, 0.7).setOrigin(0.5).setScrollFactor(0);
+    let bg = scene.add.rectangle(200, logicHeight / 2, 400, logicHeight, 0x000000, 0.7).setOrigin(0.5).setScrollFactor(0);
     winUI.add(bg);
 
     // Beau Panneau Doré (Cartel)
-    let panel = scene.add.image(200, 300, 'ui_panel').setScrollFactor(0);
+    let panel = scene.add.image(200, logicHeight / 2, 'ui_panel').setScrollFactor(0);
     winUI.add(panel);
 
     // Titre éclatant
-    let title = scene.add.text(200, 190, 'VICTOIRE !', {
+    let title = scene.add.text(200, logicHeight / 2 - 110, 'VICTOIRE !', {
         fontSize: '44px', fontFamily: 'Impact, Arial Black', fill: '#DAA520', stroke: '#8B6508', strokeThickness: 4
     }).setOrigin(0.5).setScrollFactor(0);
 
-    let subtitle = scene.add.text(200, 240, '550 Points Atteints', {
+    let subtitle = scene.add.text(200, logicHeight / 2 - 60, '550 Points Atteints', {
         fontSize: '22px', fontFamily: 'Arial', fill: '#333333', fontStyle: 'italic'
     }).setOrigin(0.5).setScrollFactor(0);
 
     // --- Les Magnifiques Boutons de Choix ---
 
-    let btnContinueBg = scene.add.image(200, 320, 'ui_button_blue').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnContinueText = scene.add.text(200, 320, 'Continuer', {
+    let btnContinueBg = scene.add.image(200, logicHeight / 2 + 20, 'ui_button_blue').setInteractive({ useHandCursor: true }).setScrollFactor(0);
+    let btnContinueText = scene.add.text(200, logicHeight / 2 + 20, 'Continuer', {
         fontSize: '22px', fill: '#FFF', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5).setScrollFactor(0);
 
@@ -650,8 +658,8 @@ function triggerWin(scene) {
         scene.physics.resume(); // La magie du saut reprend !
     });
 
-    let btnRestartBg = scene.add.image(200, 390, 'ui_button_red').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnRestartText = scene.add.text(200, 390, 'Rejouer', {
+    let btnRestartBg = scene.add.image(200, logicHeight / 2 + 90, 'ui_button_red').setInteractive({ useHandCursor: true }).setScrollFactor(0);
+    let btnRestartText = scene.add.text(200, logicHeight / 2 + 90, 'Rejouer', {
         fontSize: '22px', fill: '#FFF', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5).setScrollFactor(0);
 
@@ -677,7 +685,7 @@ function jumpOnPlatform(player, platform) {
     // Si le joueur est déjà expédié en haut par un bonus, on ignore
     if (player.body.velocity.y < -100) return;
 
-    if (platform.y < 550) hasStartedClimbing = true; // Activer le score !
+    if (platform.y < logicHeight - 50) hasStartedClimbing = true; // Activer le score !
 
     player.setVelocityY(-450); // Jump normal
     player.setTexture('debout');
@@ -686,7 +694,7 @@ function jumpOnPlatform(player, platform) {
 function jumpOnBreakablePlatform(player, platform) {
     if (player.body.velocity.y < -100) return; // Ignorer si propulsé
 
-    if (platform.y < 550) hasStartedClimbing = true; // Activer le score !
+    if (platform.y < logicHeight - 50) hasStartedClimbing = true; // Activer le score !
 
     player.setVelocityY(-450); // Maintient la hauteur de saut
     player.setTexture('debout');
