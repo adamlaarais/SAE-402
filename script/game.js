@@ -697,6 +697,7 @@ function create() {
 
 function createLevelLayer(y) {
     lineCounter++;
+    const previousMainX = lastPlatformX;
 
     // Algorithme de chemin (Variation organique de l'escalier pour éviter un parcours répétitif)
     let step = Phaser.Math.Between(50, 150); // Ecartement très variable
@@ -718,6 +719,17 @@ function createLevelLayer(y) {
     }
 
     let mainX = nextX;
+
+    // Évite qu'une planche piégée soit exactement dans l'axe de la ligne précédente.
+    // On conserve la distance verticale fixe entre lignes (90px), seul le X est légèrement décalé.
+    if (lineCounter % 6 === 0) {
+        const minDeadlyOffsetX = 35;
+        if (Math.abs(mainX - previousMainX) < minDeadlyOffsetX) {
+            const push = mainX >= 200 ? minDeadlyOffsetX : -minDeadlyOffsetX;
+            mainX = Phaser.Math.Clamp(mainX + push, 80, 320);
+        }
+    }
+
     lastPlatformX = mainX; // Mise à jour pour la suite
 
     if (lineCounter % 6 === 0) {
