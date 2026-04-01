@@ -594,23 +594,14 @@ function update() {
                     duration: 500
                 });
                 
-                // Spawner le Chronorouage un peu plus haut que le joueur
-                chronorouage = this.physics.add.sprite(200, highestY - 400, 'chronorouage');
-                chronorouage.setScale(0.15);
-                chronorouage.body.allowGravity = false;
-                chronorouage.setDepth(50);
-                
-                // Animation de rotation
-                this.tweens.add({
-                    targets: chronorouage,
-                    angle: 360,
-                    repeat: -1,
-                    duration: 2000,
-                    ease: 'Linear'
-                });
-                
-                // Collision avec le joueur
-                this.physics.add.overlap(player, chronorouage, collectChronorouage, null, this);
+                // Spawner le Chronorouage sur la prochaine plateforme générée
+                spawnChronorouage(this, lastSpawnedY - 90);
+            }
+            
+            // Vérifier si le chronorouage est passé (raté) et le respawn plus haut
+            if (chronorouage && chronorouage.active && chronorouage.y > this.cameras.main.scrollY + logicHeight + 100) {
+                chronorouage.destroy();
+                spawnChronorouage(this, highestY - 300);
             }
 
             // Condition de victoire !
@@ -786,7 +777,8 @@ function jumpOnPlatform(player, platform) {
     if (platform.y < logicHeight - 50) {
         if (!hasStartedClimbing) {
             hasStartedClimbing = true;
-            // Activer le suivi de caméra maintenant
+            // Positionner la caméra avant de lancer le suivi (évite le saut brusque)
+            player.scene.cameras.main.scrollY = player.y - logicHeight / 2 - 150;
             player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
         }
     }
@@ -801,8 +793,9 @@ function jumpOnBreakablePlatform(player, platform) {
     if (platform.y < logicHeight - 50) {
         if (!hasStartedClimbing) {
             hasStartedClimbing = true;
-            // Activer le suivi de caméra maintenant
-            this.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
+            // Positionner la caméra avant de lancer le suivi (évite le saut brusque)
+            player.scene.cameras.main.scrollY = player.y - logicHeight / 2 - 150;
+            player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
         }
     }
 
@@ -834,6 +827,23 @@ function collectBrush(player, brush) {
     if (paintEmitter) {
         paintEmitter.start();
     }
+}
+
+function spawnChronorouage(scene, yPos) {
+    // Position X aléatoire sur une zone jouable
+    let xPos = Phaser.Math.Between(80, 320);
+    
+    // Créer une plateforme spéciale pour le chronorouage
+    let chronoPlatform = platforms.create(xPos, yPos, 'platform');
+    
+    // Spawner le Chronorouage juste au-dessus de la plateforme
+    chronorouage = scene.physics.add.sprite(xPos, yPos - 25, 'chronorouage');
+    chronorouage.setScale(0.1);
+    chronorouage.body.allowGravity = false;
+    chronorouage.setDepth(50);
+    
+    // Collision avec le joueur
+    scene.physics.add.overlap(player, chronorouage, collectChronorouage, null, scene);
 }
 
 function collectChronorouage(player, chrono) {
