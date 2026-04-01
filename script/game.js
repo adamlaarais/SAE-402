@@ -296,6 +296,21 @@ function create() {
     }
     graphics.generateTexture('platform_deadly', 90, 15);
 
+    // 4. Platform de départ (toute la largeur)
+    graphics.clear();
+    graphics.fillStyle(0x222222);
+    graphics.fillRoundedRect(0, 0, 400, 20, 5);
+    graphics.fillStyle(0x444444); // Reflet haut
+    graphics.fillRoundedRect(0, 0, 400, 5, { tl: 5, tr: 5, bl: 0, br: 0 });
+    graphics.lineStyle(1, 0xFFFFFF, 0.6); // Petites coutures
+    for (let w = 5; w < 395; w += 8) {
+        graphics.beginPath();
+        graphics.moveTo(w, 10);
+        graphics.lineTo(w + 4, 10);
+        graphics.strokePath();
+    }
+    graphics.generateTexture('platform_start', 400, 20);
+
     // Pinceau plat XXL ultra-reconnaissable (Boost de saut)
     graphics.clear();
     // Grand manche large en bois (Pin)
@@ -365,7 +380,7 @@ function create() {
     deadlyPlatforms = this.physics.add.staticGroup();
 
     // Create initial platforms
-    platforms.create(200, logicHeight - 20, 'platform'); // Base platform
+    platforms.create(200, logicHeight - 20, 'platform_start'); // Plateforme de départ pleine largeur
     lastSpawnedY = logicHeight - 20;
     lineCounter = 0;
 
