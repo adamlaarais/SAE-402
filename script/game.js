@@ -93,6 +93,9 @@ let paintEmitter;
 let chronorouage;
 let chronorouageText;
 let chronorouageSpawned = false;
+let chronorouageBubble;
+let chronorouageFlying = false;
+let chronorouageLanded = false;
 
 function preload() {
     this.load.image('debout', 'img/Debout.png');
@@ -108,6 +111,8 @@ function create() {
     isBoosted = false;
     hasWon = false;
     chronorouageSpawned = false;
+    chronorouageFlying = false;
+    chronorouageLanded = false;
     lastBrushLineCounter = -5; // Un pinceau peut apparaître assez tôt au démarrage
 
     // L'outil de dessin pour toutes nos créations procédurales
@@ -573,9 +578,10 @@ function update() {
             }
             scoreText.setText(score);
 
-            // À partir de 500, afficher le message et spawner le Chronorouage
+            // À partir de 500, afficher le message et spawner le Chronorouage volant
             if (score >= 500 && !chronorouageSpawned) {
                 chronorouageSpawned = true;
+                chronorouageFlying = true;
                 
                 // Afficher le texte "Attrapez le Chronorouage"
                 chronorouageText = this.add.text(200, 80, 'Attrapez le Chronorouage !', {
@@ -595,13 +601,19 @@ function update() {
                     duration: 500
                 });
                 
-                // Spawner le Chronorouage sur la prochaine plateforme générée
-                spawnChronorouage(this, lastSpawnedY - 90);
+                // Spawner le Chronorouage volant dans une bulle
+                spawnFlyingChronorouage(this, highestY - 200);
+            }
+            
+            // À 530, le chronorouage se pose sur une plateforme
+            if (score >= 530 && chronorouageFlying && !chronorouageLanded && chronorouage && chronorouage.active) {
+                landChronorouage(this);
             }
             
             // Vérifier si le chronorouage est passé (raté) et le respawn plus haut
-            if (chronorouage && chronorouage.active && chronorouage.y > this.cameras.main.scrollY + logicHeight + 100) {
+            if (chronorouage && chronorouage.active && chronorouageLanded && chronorouage.y > this.cameras.main.scrollY + logicHeight + 100) {
                 chronorouage.destroy();
+                if (chronorouageBubble) chronorouageBubble.destroy();
                 spawnChronorouage(this, highestY - 300);
             }
         }
@@ -808,6 +820,84 @@ function collectBrush(player, brush) {
     }
 }
 
+function spawnFlyingChronorouage(scene, yPos) {
+    // Position X au centre
+    let xPos = 200;
+    
+    // Créer la bulle (cercle transparent)
+    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0x87CEEB, 0.3); // Bleu clair transparent
+    graphics.fillCircle(30, 30, 30);
+    graphics.lineStyle(2, 0xADD8E6, 0.8);
+    graphics.strokeCircle(30, 30, 30);
+    // Reflet de la bulle
+    graphics.fillStyle(0xFFFFFF, 0.5);
+    graphics.fillEllipse(20, 18, 12, 8);
+    graphics.generateTexture('bubble', 60, 60);
+    graphics.destroy();
+    
+    // Créer la bulle
+    chronorouageBubble = scene.add.image(xPos, yPos, 'bubble');
+    chronorouageBubble.setScale(1.2);
+    chronorouageBubble.setDepth(49);
+    
+    // Spawner le Chronorouage dans la bulle
+    chronorouage = scene.physics.add.sprite(xPos, yPos, 'chronorouage');
+    chronorouage.setScale(0.1);
+    chronorouage.body.allowGravity = false;
+    chronorouage.setDepth(50);
+    
+    // Animation de flottement
+    scene.tweens.add({
+        targets: [chronorouage, chronorouageBubble],
+        y: yPos - 20,
+        x: { from: xPos - 30, to: xPos + 30 },
+        yoyo: true,
+        repeat: -1,
+        duration: 1500,
+        ease: 'Sine.easeInOut'
+    });
+    
+    // Collision avec le joueur
+    scene.physics.add.overlap(player, chronorouage, collectChronorouage, null, scene);
+}
+
+function landChronorouage(scene) {
+    chronorouageFlying = false;
+    chronorouageLanded = true;
+    
+    // Arrêter les tweens de flottement
+    scene.tweens.killTweensOf(chronorouage);
+    scene.tweens.killTweensOf(chronorouageBubble);
+    
+    // Position de la plateforme d'atterrissage
+    let xPos = Phaser.Math.Between(80, 320);
+    let yPos = highestY - 150;
+    
+    // Créer une plateforme pour poser le chronorouage
+    platforms.create(xPos, yPos, 'platform');
+    
+    // Animation de la bulle qui éclate
+    scene.tweens.add({
+        targets: chronorouageBubble,
+        scale: 1.8,
+        alpha: 0,
+        duration: 300,
+        onComplete: () => {
+            if (chronorouageBubble) chronorouageBubble.destroy();
+        }
+    });
+    
+    // Animation du chronorouage qui descend sur la plateforme
+    scene.tweens.add({
+        targets: chronorouage,
+        x: xPos,
+        y: yPos - 25,
+        duration: 500,
+        ease: 'Bounce.easeOut'
+    });
+}
+
 function spawnChronorouage(scene, yPos) {
     // Position X aléatoire sur une zone jouable
     let xPos = Phaser.Math.Between(80, 320);
@@ -820,6 +910,7 @@ function spawnChronorouage(scene, yPos) {
     chronorouage.setScale(0.1);
     chronorouage.body.allowGravity = false;
     chronorouage.setDepth(50);
+    chronorouageLanded = true;
     
     // Collision avec le joueur
     scene.physics.add.overlap(player, chronorouage, collectChronorouage, null, scene);
@@ -827,6 +918,7 @@ function spawnChronorouage(scene, yPos) {
 
 function collectChronorouage(player, chrono) {
     chrono.destroy();
+    if (chronorouageBubble) chronorouageBubble.destroy();
     if (chronorouageText) {
         chronorouageText.destroy();
     }
