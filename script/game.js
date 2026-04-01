@@ -385,8 +385,8 @@ function create() {
     deadlyPlatforms = this.physics.add.staticGroup();
 
     // Create initial platforms
-    platforms.create(200, logicHeight - 10, 'platform_start'); // Plateforme de départ pleine largeur (plus bas)
-    lastSpawnedY = logicHeight - 10;
+    platforms.create(200, logicHeight - 50, 'platform_start'); // Plateforme de départ pleine largeur
+    lastSpawnedY = logicHeight - 50;
     lineCounter = 0;
 
     // Astuce : La première plateforme sera toujours générée bien à droite ou bien à gauche
@@ -396,12 +396,12 @@ function create() {
 
     let initialPlats = Math.ceil(logicHeight / 90) + 2;
     for (let i = 0; i < initialPlats; i++) { // Un peu plus de plateformes initiales pour combler tout l'écran de départ
-        lastSpawnedY = (logicHeight - 120) - (i * 90);
+        lastSpawnedY = (logicHeight - 160) - (i * 90);
         createLevelLayer(lastSpawnedY);
     }
 
-    // Player (départ posé proprement sur la base sans gravité - plus bas)
-    player = this.physics.add.sprite(200, logicHeight - 30, 'debout');
+    // Player (départ posé proprement sur la base)
+    player = this.physics.add.sprite(200, logicHeight - 70, 'debout');
     // Scale player
     player.setScale(0.15);
     player.setOrigin(0.5, 1);
@@ -427,10 +427,9 @@ function create() {
 
     this.physics.add.overlap(player, brushes, collectBrush, null, this);
 
-    // Camera - fixée horizontalement, ne suit que verticalement
+    // Camera (lerp Y at 0.1 for smooth vertical follow)
+    this.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
     this.cameras.main.setDeadzone(0, 200);
-    this.cameras.main.setBounds(0, -Infinity, logicWidth, Infinity);
-    this.cameras.main.scrollX = 0;
 
     // UI
     scoreText = this.add.text(200, 20, '0', {
@@ -543,11 +542,11 @@ function update() {
         player.setVelocityX(0);
     }
 
-    // Wrap screen
-    if (player.x < -20) {
-        player.x = 420;
-    } else if (player.x > 420) {
-        player.x = -20;
+    // Bloquer le joueur aux bords de l'écran
+    if (player.x < 20) {
+        player.x = 20;
+    } else if (player.x > logicWidth - 20) {
+        player.x = logicWidth - 20;
     }
 
     // Change sprite based on falling vs jumping
@@ -771,13 +770,7 @@ function jumpOnPlatform(player, platform) {
     // Si le joueur est déjà expédié en haut par un bonus, on ignore
     if (player.body.velocity.y < -100) return;
 
-    if (platform.y < logicHeight - 50) {
-        if (!hasStartedClimbing) {
-            hasStartedClimbing = true;
-            // Activer le suivi vertical uniquement (lerpX = 0, lerpY = 0.1)
-            player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
-        }
-    }
+    if (platform.y < logicHeight - 100) hasStartedClimbing = true;
 
     player.setVelocityY(-450); // Jump normal
     player.setTexture('debout');
@@ -786,13 +779,7 @@ function jumpOnPlatform(player, platform) {
 function jumpOnBreakablePlatform(player, platform) {
     if (player.body.velocity.y < -100) return; // Ignorer si propulsé
 
-    if (platform.y < logicHeight - 50) {
-        if (!hasStartedClimbing) {
-            hasStartedClimbing = true;
-            // Activer le suivi vertical uniquement (lerpX = 0, lerpY = 0.1)
-            player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
-        }
-    }
+    if (platform.y < logicHeight - 100) hasStartedClimbing = true;
 
     player.setVelocityY(-450); // Maintient la hauteur de saut
     player.setTexture('debout');
@@ -810,10 +797,7 @@ function jumpOnBreakablePlatform(player, platform) {
 }
 
 function collectBrush(player, brush) {
-    if (!hasStartedClimbing) {
-        hasStartedClimbing = true;
-        player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
-    }
+    hasStartedClimbing = true;
     isBoosted = true; // Déclenche l'immunité et le pouvoir de traverser les obstacles
     player.setVelocityY(-900); // SUPER PROPULSION D'ARTISTE !
     brush.destroy();
