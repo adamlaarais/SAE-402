@@ -1,12 +1,31 @@
-let windowRatio = window.innerHeight / window.innerWidth;
-let logicWidth = 400;
-let logicHeight = Math.max(600, logicWidth * windowRatio);
+function getGameDimensions() {
+    // Utilise visualViewport pour ignorer la barre d'adresse mobile
+    const vh = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
+    const vw = window.visualViewport?.width || window.innerWidth || document.documentElement.clientWidth;
+    const ratio = vh / vw;
+    const logicWidth = 400;
+    const logicHeight = Math.max(600, Math.round(logicWidth * ratio));
+    return { logicWidth, logicHeight, vw, vh };
+}
+
+let { logicWidth, logicHeight, vw, vh } = getGameDimensions();
 
 const config = {
     type: Phaser.AUTO,
     scale: {
         mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        parent: 'game-container',
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: logicWidth,
+        height: logicHeight,
+        min: {
+            width: 300,
+            height: 400
+        },
+        max: {
+            width: 600,
+            height: 1200
+        }
     },
     width: logicWidth,
     height: logicHeight,
@@ -26,6 +45,25 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
+// Gérer les changements de viewport (barre d'adresse mobile)
+function handleViewportResize() {
+    const container = document.getElementById('game-container');
+    const vh = window.visualViewport?.height || window.innerHeight;
+    const vw = window.visualViewport?.width || window.innerWidth;
+    document.body.style.height = vh + 'px';
+    container.style.height = vh + 'px';
+}
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', handleViewportResize);
+}
+window.addEventListener('resize', handleViewportResize);
+window.addEventListener('orientationchange', () => {
+    setTimeout(handleViewportResize, 100);
+});
+handleViewportResize();
 
 let player;
 let platforms;
