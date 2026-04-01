@@ -427,8 +427,10 @@ function create() {
 
     this.physics.add.overlap(player, brushes, collectBrush, null, this);
 
-    // Camera - ne suit pas encore le joueur au départ
+    // Camera - fixée horizontalement, ne suit que verticalement
     this.cameras.main.setDeadzone(0, 200);
+    this.cameras.main.setBounds(0, -Infinity, logicWidth, Infinity);
+    this.cameras.main.scrollX = 0;
 
     // UI
     scoreText = this.add.text(200, 20, '0', {
@@ -603,11 +605,6 @@ function update() {
                 chronorouage.destroy();
                 spawnChronorouage(this, highestY - 300);
             }
-
-            // Condition de victoire !
-            if (score >= 550 && !hasWon) {
-                triggerWin(this);
-            }
         }
 
         // Generate new platforms fluidly (while loop ensures no gaps if frame drops)
@@ -777,8 +774,7 @@ function jumpOnPlatform(player, platform) {
     if (platform.y < logicHeight - 50) {
         if (!hasStartedClimbing) {
             hasStartedClimbing = true;
-            // Positionner la caméra avant de lancer le suivi (évite le saut brusque)
-            player.scene.cameras.main.scrollY = player.y - logicHeight / 2 - 150;
+            // Activer le suivi vertical uniquement (lerpX = 0, lerpY = 0.1)
             player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
         }
     }
@@ -793,8 +789,7 @@ function jumpOnBreakablePlatform(player, platform) {
     if (platform.y < logicHeight - 50) {
         if (!hasStartedClimbing) {
             hasStartedClimbing = true;
-            // Positionner la caméra avant de lancer le suivi (évite le saut brusque)
-            player.scene.cameras.main.scrollY = player.y - logicHeight / 2 - 150;
+            // Activer le suivi vertical uniquement (lerpX = 0, lerpY = 0.1)
             player.scene.cameras.main.startFollow(player, true, 0, 0.1, 0, 150);
         }
     }
