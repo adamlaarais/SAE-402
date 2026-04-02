@@ -831,8 +831,8 @@ function update() {
             }
             scoreText.setText(score);
 
-            // À partir de 500, afficher le message et spawner le Chronorouage volant
-            if (score >= 500 && !chronorouageSpawned) {
+            // À partir de 300, afficher le message et spawner le Chronorouage volant
+            if (score >= 300 && !chronorouageSpawned) {
                 chronorouageSpawned = true;
                 chronorouageFlying = true;
                 
