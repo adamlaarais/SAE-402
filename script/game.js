@@ -720,13 +720,16 @@ function createLevelLayer(y) {
 
     let mainX = nextX;
 
-    // Évite qu'une planche piégée soit exactement dans l'axe de la ligne précédente.
-    // On conserve la distance verticale fixe entre lignes (90px), seul le X est légèrement décalé.
+    // Évite qu'une planche piégée soit dans le même axe qu'une planche juste en dessous.
+    // Le décalage doit être large (>= largeur d'une planche) pour ne pas se la prendre en sautant.
     if (lineCounter % 6 === 0) {
-        const minDeadlyOffsetX = 35;
+        const minDeadlyOffsetX = 100;
         if (Math.abs(mainX - previousMainX) < minDeadlyOffsetX) {
-            const push = mainX >= 200 ? minDeadlyOffsetX : -minDeadlyOffsetX;
-            mainX = Phaser.Math.Clamp(mainX + push, 80, 320);
+            const deadlyLeftX = Phaser.Math.Between(80, 150);
+            const deadlyRightX = Phaser.Math.Between(250, 320);
+
+            // Force le piège à partir franchement d'un côté ou de l'autre.
+            mainX = previousMainX < 200 ? deadlyRightX : deadlyLeftX;
         }
     }
 
@@ -1029,6 +1032,8 @@ function triggerWin(scene) {
 
     btnContinueBg.on('pointerdown', () => {
         winUI.destroy(true); // Nettoie le menu !
+        hasWon = false; // Repasser en mode jeu normal pour réactiver le menu burger
+        isPaused = false;
         scene.physics.resume(); // La magie du saut reprend !
     });
 
