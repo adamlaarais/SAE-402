@@ -45,78 +45,19 @@ const config = {
 };
 
 let game = null;
-let isPaused = false;
 let currentScene = null;
 
-// Écran de démarrage et menu pause
+// Écran de démarrage
 document.addEventListener('DOMContentLoaded', () => {
     const startButton = document.getElementById('start-button');
     const startScreen = document.getElementById('start-screen');
-    const burgerIcon = document.getElementById('burger-icon');
-    const pauseMenu = document.getElementById('pause-menu');
-    const menuHome = document.getElementById('menu-home');
-    const menuContinue = document.getElementById('menu-continue');
-    const menuRestart = document.getElementById('menu-restart');
     
     startButton.addEventListener('click', () => {
         startScreen.style.display = 'none';
-        burgerIcon.classList.add('visible');
         initAudio();
         if (!game) {
             game = new Phaser.Game(config);
         }
-    });
-    
-    // Ouvrir le menu pause
-    burgerIcon.addEventListener('click', () => {
-        if (game && currentScene && !gameOver && !hasWon) {
-            isPaused = true;
-            pauseMenu.classList.add('visible');
-            if (currentScene.physics) {
-                currentScene.physics.pause();
-            }
-        }
-    });
-    
-    // Menu Continuer - reprendre le jeu
-    menuContinue.addEventListener('click', () => {
-        pauseMenu.classList.remove('visible');
-        
-        if (game && currentScene && currentScene.physics && !gameOver && !hasWon) {
-            currentScene.physics.resume();
-            isPaused = false;
-        }
-    });
-    
-    // Menu Redémarrer - recommencer la partie
-    menuRestart.addEventListener('click', () => {
-        pauseMenu.classList.remove('visible');
-        
-        // Reset des variables
-        resetGameVariables();
-        
-        if (game && currentScene) {
-            currentScene.physics.resume();
-            isPaused = false;
-            currentScene.scene.restart();
-        }
-    });
-    
-    // Menu Accueil - retour à l'écran de démarrage
-    menuHome.addEventListener('click', () => {
-        pauseMenu.classList.remove('visible');
-        burgerIcon.classList.remove('visible');
-        
-        if (game) {
-            game.destroy(true);
-            game = null;
-        }
-        
-        // Reset des variables
-        resetGameVariables();
-        
-        startScreen.style.display = 'flex';
-        isPaused = false;
     });
 });
 
@@ -137,7 +78,6 @@ function resetGameVariables() {
     chronorouageSpawned = false;
     chronorouageFlying = false;
     chronorouageStopped = false;
-    isPaused = false;
 }
 
 // Gérer les changements de viewport (barre d'adresse mobile)
@@ -1032,8 +972,7 @@ function triggerWin(scene) {
 
     btnContinueBg.on('pointerdown', () => {
         winUI.destroy(true); // Nettoie le menu !
-        hasWon = false; // Repasser en mode jeu normal pour réactiver le menu burger
-        isPaused = false;
+        hasWon = false; // Repasser en mode jeu normal
         scene.physics.resume(); // La magie du saut reprend !
     });
 
