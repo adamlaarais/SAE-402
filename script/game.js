@@ -51,14 +51,141 @@ let currentScene = null;
 document.addEventListener('DOMContentLoaded', () => {
     const startButton = document.getElementById('start-button');
     const startScreen = document.getElementById('start-screen');
+    const geolocScreen = document.getElementById('geoloc-screen');
+    const geolocButton = document.getElementById('geoloc-button');
+    const geolocStatus = document.getElementById('geoloc-status');
     
+    // Coordonnées du Musée des Beaux-Arts de Mulhouse
+    const MUSEUM_LAT = 47.74583;
+    const MUSEUM_LNG = 7.33847;
+    const MAX_DISTANCE_KM = 0.5; // Autoriser jusqu'à 500 mètres d'écart pour les GPS imprécis
+    
+    // Fonction Haversine pour calculer la distance
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Rayon de la Terre en km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    // Override via l'URL (?localisation ou ?localisation=1)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('localisation')) {
+        geolocScreen.style.display = 'none';
+        startScreen.style.display = 'flex';
+    }
+
+    if(geolocButton) {
+        geolocButton.addEventListener('click', () => {
+            geolocStatus.innerText = "Recherche de votre position en cours...";
+            geolocButton.style.display = 'none';
+
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        const dist = calculateDistance(userLat, userLng, MUSEUM_LAT, MUSEUM_LNG);
+                        
+                        if (dist <= MAX_DISTANCE_KM) {
+                            // Succès, on est au musée !
+                            geolocScreen.style.display = 'none';
+                            startScreen.style.display = 'flex';
+                        } else {
+                            geolocStatus.innerText = "Vous n'êtes pas au Musée des Beaux-Arts de Mulhouse.\nDistance trouvée : " + dist.toFixed(2) + " km\nRapprochez-vous pour jouer !";
+                            geolocButton.style.display = 'block';
+                            geolocButton.innerText = "Réessayer";
+                        }
+                    },
+                    (error) => {
+                        geolocStatus.innerText = "Erreur : " + error.message + ".\nVeuillez vérifier vos autorisations de localisation et que votre GPS est activé.";
+                        geolocButton.style.display = 'block';
+                        geolocButton.innerText = "Réessayer";
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                geolocStatus.innerText = "La géolocalisation n'est pas supportée par votre navigateur.";
+                geolocButton.style.display = 'block';
+                geolocButton.innerText = "Réessayer";
+            }
+        });
+    }
+
     startButton.addEventListener('click', () => {
         startScreen.style.display = 'none';
+        document.getElementById('pause-button').style.display = 'block';
         initAudio();
         if (!game) {
             game = new Phaser.Game(config);
         }
     });
+
+    // Boutons Game Over
+    document.getElementById('restart-button-go').addEventListener('click', () => {
+        document.getElementById('game-over-screen').style.display = 'none';
+        if (currentScene) currentScene.scene.restart();
+    });
+    document.getElementById('home-button-go').addEventListener('click', () => {
+        // Retour à l'accueil
+        let menuHome = document.getElementById('menu-home');
+        if(menuHome) menuHome.click();
+        else window.location.href = 'index.html'; // Fallback
+    });
+
+    // Boutons Victoire
+    document.getElementById('continue-button-win').addEventListener('click', () => {
+        document.getElementById('victory-screen').style.display = 'none';
+        hasWon = false;
+        let pb = document.getElementById('pause-button');
+        if (pb) pb.style.display = 'block';
+        if (currentScene) currentScene.physics.resume();
+    });
+    document.getElementById('restart-button-win').addEventListener('click', () => {
+        document.getElementById('victory-screen').style.display = 'none';
+        if (currentScene) currentScene.scene.restart();
+    });
+
+    // Bouton Pause HTML
+    const pauseBtn = document.getElementById('pause-button');
+    if (pauseBtn) {
+        // Prévenir l'événement tactile de se propager au jeu
+        pauseBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, {passive: false});
+        pauseBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+        
+        pauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            if (!isPaused) {
+                pauseClickCount++;
+                
+                if (pauseClickCount >= 3) {
+                    hasWon = true;
+                    if(pauseTimer) clearTimeout(pauseTimer);
+                    if (currentScene) triggerWin(currentScene);
+                    return;
+                }
+
+                if(currentScene) currentScene.physics.pause();
+                isPaused = true;
+                pauseBtn.style.opacity = '0.7';
+            } else {
+                if(currentScene) currentScene.physics.resume();
+                isPaused = false;
+                pauseBtn.style.opacity = '1';
+            }
+
+            if (pauseTimer) clearTimeout(pauseTimer);
+            // On laisse 5 secondes pour réaliser le code de triche (Pause, Reprise, Pause, Reprise, Pause)
+            pauseTimer = setTimeout(() => {
+                pauseClickCount = 0;
+            }, 5000);
+        });
+    }
 });
 
 // Reset des variables du jeu
@@ -78,6 +205,9 @@ function resetGameVariables() {
     chronorouageSpawned = false;
     chronorouageFlying = false;
     chronorouageStopped = false;
+    pauseClickCount = 0;
+    isPaused = false;
+    if (pauseTimer) clearTimeout(pauseTimer);
 }
 
 // Gérer les changements de viewport (barre d'adresse mobile)
@@ -114,6 +244,9 @@ let isBoosted = false;
 let lastBrushLineCounter = 0;
 let gameOver = false;
 let hasWon = false;
+let pauseClickCount = 0;
+let isPaused = false;
+let pauseTimer = null;
 let background;
 let lastPlatformX = 200;
 let deadlyPlatforms;
@@ -282,6 +415,15 @@ function create() {
     chronorouageStopped = false;
     chronorouageTargetY = 0;
     lastBrushLineCounter = -5; // Un pinceau peut apparaître assez tôt au démarrage
+    pauseClickCount = 0;
+    isPaused = false;
+    if (pauseTimer) clearTimeout(pauseTimer);
+    
+    let pb = document.getElementById('pause-button');
+    if (pb) {
+        pb.style.display = 'block';
+        pb.style.opacity = '1';
+    }
 
     // L'outil de dessin pour toutes nos créations procédurales
     const graphics = this.make.graphics({ x: 0, y: 0, add: false });
@@ -881,112 +1023,26 @@ function triggerGameOver(scene) {
     player.setTint(0xff0000); // Peint le joueur en rouge
     player.setVelocity(0, 0);
 
-    let overUI = scene.add.group();
+    // Cache le bouton HTML pause
+    document.getElementById('pause-button').style.display = 'none';
 
-    // Assombrissement dramatique du décor (fixé fermement à l'écran entier)
-    let bg = scene.add.rectangle(200, logicHeight / 2, 400, logicHeight, 0x000000, 0.7).setOrigin(0.5).setScrollFactor(0);
-    overUI.add(bg);
-
-    // Beau Panneau Doré !
-    let panel = scene.add.image(200, logicHeight / 2, 'ui_panel').setScrollFactor(0);
-    overUI.add(panel);
-
-    // Cadre intérieur doré
-    let innerFrame = scene.add.rectangle(200, logicHeight / 2, 270, 230, 0x000000, 0)
-        .setStrokeStyle(2, 0xC4A574)
-        .setScrollFactor(0);
-    overUI.add(innerFrame);
-
-    // Titre avec style doré
-    let title = scene.add.text(200, logicHeight / 2 - 80, 'GAME OVER', {
-        fontSize: '38px', fontFamily: 'Impact, Arial Black', fill: '#DAA520', stroke: '#8B6508', strokeThickness: 4
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    let scoreT = scene.add.text(200, logicHeight / 2 - 25, 'Score: ' + score, {
-        fontSize: '24px', fontFamily: 'Georgia, serif', fill: '#4a3728', fontStyle: 'italic'
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    // Bouton Rejouer (bleu)
-    let btnRestartBg = scene.add.image(200, logicHeight / 2 + 40, 'ui_button_blue').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnRestartText = scene.add.text(200, logicHeight / 2 + 40, 'Rejouer', {
-        fontSize: '22px', fill: '#FFF', fontFamily: 'Georgia, serif', fontStyle: 'bold'
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    btnRestartBg.on('pointerdown', () => {
-        scene.scene.restart();
-    });
-
-    // Bouton Accueil (rouge)
-    let btnHomeBg = scene.add.image(200, logicHeight / 2 + 100, 'ui_button_red').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnHomeText = scene.add.text(200, logicHeight / 2 + 100, 'Accueil', {
-        fontSize: '22px', fill: '#FFF', fontFamily: 'Georgia, serif', fontStyle: 'bold'
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    btnHomeBg.on('pointerdown', () => {
-        // Retour à l'accueil
-        document.getElementById('menu-home').click();
-    });
-
-    overUI.addMultiple([title, scoreT, innerFrame, btnRestartBg, btnRestartText, btnHomeBg, btnHomeText]);
+    // Affiche l'overlay HTML centré via flexbox
+    document.getElementById('game-over-score').innerText = 'Score: ' + score;
+    document.getElementById('game-over-screen').style.display = 'flex';
 }
 
 function triggerWin(scene) {
     hasWon = true;
     playWinSound();
 
+    // Cache le bouton HTML pause
+    document.getElementById('pause-button').style.display = 'none';
+
     // Fige intégralement le moteur physique pour un freeze épique
     scene.physics.pause();
 
-    let winUI = scene.add.group();
-
-    // Fond assombri fixé à la fenêtre
-    let bg = scene.add.rectangle(200, logicHeight / 2, 400, logicHeight, 0x000000, 0.75).setOrigin(0.5).setScrollFactor(0);
-    winUI.add(bg);
-
-    // Beau Panneau Doré (Cartel)
-    let panel = scene.add.image(200, logicHeight / 2, 'ui_panel').setScrollFactor(0);
-    winUI.add(panel);
-
-    // Cadre intérieur doré
-    let innerFrame = scene.add.rectangle(200, logicHeight / 2, 270, 230, 0x000000, 0)
-        .setStrokeStyle(2, 0xC4A574)
-        .setScrollFactor(0);
-    winUI.add(innerFrame);
-
-    // Titre éclatant
-    let title = scene.add.text(200, logicHeight / 2 - 90, 'VICTOIRE !', {
-        fontSize: '38px', fontFamily: 'Impact, Arial Black', fill: '#DAA520', stroke: '#8B6508', strokeThickness: 4
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    let subtitle = scene.add.text(200, logicHeight / 2 - 40, 'Chronorouage Récupéré !', {
-        fontSize: '18px', fontFamily: 'Georgia, serif', fill: '#4a3728', fontStyle: 'italic'
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    // --- Les Magnifiques Boutons de Choix ---
-
-    // Bouton Continuer (bleu)
-    let btnContinueBg = scene.add.image(200, logicHeight / 2 + 20, 'ui_button_blue').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnContinueText = scene.add.text(200, logicHeight / 2 + 20, 'Continuer', {
-        fontSize: '22px', fill: '#FFF', fontFamily: 'Georgia, serif', fontStyle: 'bold'
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    btnContinueBg.on('pointerdown', () => {
-        winUI.destroy(true); // Nettoie le menu !
-        hasWon = false; // Repasser en mode jeu normal
-        scene.physics.resume(); // La magie du saut reprend !
-    });
-
-    // Bouton Rejouer (doré)
-    let btnRestartBg = scene.add.image(200, logicHeight / 2 + 80, 'ui_button_gold').setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    let btnRestartText = scene.add.text(200, logicHeight / 2 + 80, 'Rejouer', {
-        fontSize: '22px', fill: '#FFF', fontFamily: 'Georgia, serif', fontStyle: 'bold'
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    btnRestartBg.on('pointerdown', () => {
-        scene.scene.restart(); // Refait le niveau complet !
-    });
-
-    winUI.addMultiple([title, subtitle, innerFrame, btnContinueBg, btnContinueText, btnRestartBg, btnRestartText]);
+    // Affiche l'overlay HTML centré via flexbox
+    document.getElementById('victory-screen').style.display = 'flex';
 }
 
 function hitDeadlyPlatform(player, platform) {

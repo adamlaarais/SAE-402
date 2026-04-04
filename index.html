@@ -36,13 +36,47 @@
             <p>Veuillez tourner votre appareil en mode portrait pour admirer l'exposition.</p>
         </div>
     </div>
-    <div id="start-screen">
+    <div id="geoloc-screen">
+        <div class="start-content">
+            <h1>Vérification du Lieu</h1>
+            <p id="geoloc-status" style="font-family: 'Georgia', serif; font-size: 18px; color: #4a3728; line-height: 1.4; margin-bottom: 25px;">
+                Ce jeu exclusif ne peut être joué qu'au Musée des Beaux-Arts de Mulhouse.<br><br>
+                Veuillez autoriser la géolocalisation pour confirmer votre présence.
+            </p>
+            <button id="geoloc-button" class="game-btn btn-blue" style="margin-bottom: 0;">Vérifier ma position</button>
+        </div>
+    </div>
+
+    <div id="start-screen" style="display: none;">
         <div class="start-content">
             <h1>Le Chef d'Œuvre Perdu</h1>
             <button id="start-button">Démarrer</button>
         </div>
     </div>
+    
+    <div id="game-over-screen" style="display: none;">
+        <div class="menu-content">
+            <h1 class="game-over-title">GAME OVER</h1>
+            <p id="game-over-score" class="menu-subtitle">Score: 0</p>
+            <div class="buttons-container">
+                <button id="restart-button-go" class="game-btn btn-blue">Rejouer</button>
+                <button id="home-button-go" class="game-btn btn-red">Accueil</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="victory-screen" style="display: none;">
+        <div class="menu-content">
+            <h1 class="victory-title">VICTOIRE !</h1>
+            <p class="menu-subtitle">Chronorouage Récupéré !</p>
+            <div class="buttons-container">
+                <button id="continue-button-win" class="game-btn btn-blue">Continuer</button>
+                <button id="restart-button-win" class="game-btn btn-gold">Rejouer</button>
+            </div>
+        </div>
+    </div>
     <div id="game-container"></div>
+    <button id="pause-button" class="btn-pause">II</button>
     
     <script src="script/game.js"></script>
 </body>
