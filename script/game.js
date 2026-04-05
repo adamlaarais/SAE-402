@@ -243,6 +243,7 @@ let hasStartedClimbing = false;
 let isBoosted = false;
 let lastBrushLineCounter = 0;
 let gameOver = false;
+let isDialogMode = false;
 let hasWon = false;
 let pauseClickCount = 0;
 let isPaused = false;
@@ -400,7 +401,7 @@ function preload() {
     this.load.image('debout', 'img/Debout.png');
     this.load.image('accroupis', 'img/Accroupis.png');
     this.load.image('chronorouage', 'img/piece3.png');
-    // On ne charge plus de fichier externe pour le fond
+    this.load.image('fond', 'img/fond.jpg');
 }
 
 function create() {
@@ -775,6 +776,116 @@ function create() {
     });
     paintEmitter.startFollow(player, 0, 10); // Accroché aux pieds
     paintEmitter.setDepth(-1); // Trace en fond de plan
+
+    // ===================================
+    // MODE DIALOGUE VISUAL NOVEL
+    // ===================================
+    isDialogMode = true;
+    this.physics.pause(); // On fige les sauts
+    player.setVisible(false); // Cache le petit joueur pendant le dialogue
+    scoreText.setVisible(false); // Cache le score
+    
+    let dialogGroup = this.add.group();
+
+    // Fond spécifique pour le dialogue
+    let dialogBg = this.add.image(200, logicHeight/2, 'fond').setDepth(199).setScrollFactor(0);
+    dialogBg.setDisplaySize(400, logicHeight);
+    dialogGroup.add(dialogBg);
+
+    // Filtre sombre sur tout le jeu (réduit légèrement puisque le fond img est déjà là)
+    let overlay = this.add.rectangle(200, logicHeight/2, 400, logicHeight, 0x000000, 0.4).setDepth(200).setScrollFactor(0);
+    dialogGroup.add(overlay);
+
+    // Sprite du joueur en très grand
+    let vnPlayer = this.add.sprite(90, logicHeight - 140, 'debout').setOrigin(0.5, 1).setScale(0.5).setDepth(201).setScrollFactor(0);
+    dialogGroup.add(vnPlayer);
+
+    // Boîte de dialogue
+    let dialogBox = this.add.graphics().setDepth(201).setScrollFactor(0);
+    dialogBox.fillStyle(0x111111, 0.9);
+    dialogBox.lineStyle(4, 0xDAA520, 1);
+    dialogBox.fillRoundedRect(10, logicHeight - 150, 380, 140, 10);
+    dialogBox.strokeRoundedRect(10, logicHeight - 150, 380, 140, 10);
+    dialogGroup.add(dialogBox);
+
+    // Cartel de Nom
+    let nameBox = this.add.graphics().setDepth(202).setScrollFactor(0);
+    nameBox.fillStyle(0xDAA520, 1);
+    nameBox.fillRoundedRect(20, logicHeight - 165, 120, 35, 5);
+    dialogGroup.add(nameBox);
+    let nameText = this.add.text(80, logicHeight - 147, "Moi", { font: "bold 20px 'Impact', sans-serif", fill: "#000" }).setOrigin(0.5).setDepth(203).setScrollFactor(0);
+    dialogGroup.add(nameText);
+
+    // Texte avec Typewriter
+    let dialogText = this.add.text(25, logicHeight - 120, "", {
+        font: "16px Georgia",
+        fill: "#fff",
+        wordWrap: { width: 350 },
+        lineHeight: 24
+    }).setDepth(203).setScrollFactor(0);
+    dialogGroup.add(dialogText);
+
+    // Indication de clic
+    let clickTexte = this.add.text(380, logicHeight - 20, "▼", { font: "20px Arial", fill: "#DAA520" }).setOrigin(1, 1).setDepth(203).setScrollFactor(0);
+    this.tweens.add({ targets: clickTexte, y: logicHeight - 15, yoyo: true, repeat: -1, duration: 400 });
+    dialogGroup.add(clickTexte);
+
+    let lines = [
+        "M'y voici... Le prestigieux Musée des Beaux-Arts.",
+        "L'anomalie temporelle est forte ici. Les rumeurs disaient vrai : elle se cache parmi ces toiles de maîtres.",
+        "Je suis là pour trouver le 3ème chronorouage, cet engrenage du temps indispensable...",
+        "Il faut que je grimpe le long des œuvres d'art pour le récupérer avant que la trame temporelle ne s'effondre !"
+    ];
+    let currentLine = 0;
+    let isTyping = false;
+    let typeTimer;
+
+    const showNextLine = () => {
+        if (currentLine >= lines.length) {
+            // Fin du dialogue -> Lancement du jeu
+            dialogGroup.destroy(true); // Nettoie tout
+            isDialogMode = false;
+            player.setVisible(true);
+            scoreText.setVisible(true);
+            this.physics.resume();
+            return;
+        }
+        
+        let line = lines[currentLine];
+        dialogText.text = "";
+        let currentChar = 0;
+        isTyping = true;
+        
+        typeTimer = this.time.addEvent({
+            delay: 35, // vitesse du texte
+            callback: () => {
+                dialogText.text += line[currentChar];
+                currentChar++;
+                if (currentChar >= line.length) {
+                    isTyping = false;
+                    typeTimer.remove();
+                }
+            },
+            repeat: line.length - 1
+        });
+        currentLine++;
+    };
+
+    // On crée un input temporaire pour le dialogue
+    this.input.on('pointerdown', () => {
+        if (!isDialogMode) return;
+        
+        if (isTyping) {
+            // Force l'affichage du texte entier
+            typeTimer.remove();
+            dialogText.text = lines[currentLine - 1];
+            isTyping = false;
+        } else {
+            showNextLine();
+        }
+    });
+
+    showNextLine();
 }
 
 function createLevelLayer(y) {
@@ -850,6 +961,7 @@ function createLevelLayer(y) {
 }
 
 function update() {
+    if (isDialogMode) return;
     if (gameOver) return;
 
     // Mettre à jour la bulle du chronorouage

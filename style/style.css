@@ -133,7 +133,7 @@ html, body {
 }
 
 /* Écran de démarrage */
-#start-screen, #geoloc-screen {
+#start-screen, #geoloc-screen, #story-screen {
     display: flex;
     position: fixed;
     top: 0;
