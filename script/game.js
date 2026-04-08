@@ -324,6 +324,7 @@ let isBoosted = false;
 let lastBrushLineCounter = 0;
 let gameOver = false;
 let isDialogMode = false;
+let hasSeenDialog = false;
 let hasWon = false;
 let pauseClickCount = 0;
 let isPaused = false;
@@ -860,12 +861,14 @@ function create() {
     // ===================================
     // MODE DIALOGUE VISUAL NOVEL
     // ===================================
-    isDialogMode = true;
-    this.physics.pause(); // On fige les sauts
-    player.setVisible(false); // Cache le petit joueur pendant le dialogue
-    scoreText.setVisible(false); // Cache le score
+    if (!hasSeenDialog) {
+        hasSeenDialog = true;
+        isDialogMode = true;
+        this.physics.pause(); // On fige les sauts
+        player.setVisible(false); // Cache le petit joueur pendant le dialogue
+        scoreText.setVisible(false); // Cache le score
     
-    let dialogGroup = this.add.group();
+        let dialogGroup = this.add.group();
 
     // Fond spécifique pour le dialogue
     let dialogBg = this.add.image(200, logicHeight/2, 'fond').setDepth(199).setScrollFactor(0);
@@ -952,20 +955,23 @@ function create() {
     };
 
     // On crée un input temporaire pour le dialogue
-    this.input.on('pointerdown', () => {
-        if (!isDialogMode) return;
-        
-        if (isTyping) {
-            // Force l'affichage du texte entier
-            typeTimer.remove();
-            dialogText.text = lines[currentLine - 1];
-            isTyping = false;
-        } else {
-            showNextLine();
-        }
-    });
+        this.input.on('pointerdown', () => {
+            if (!isDialogMode) return;
+            
+            if (isTyping) {
+                // Force l'affichage du texte entier
+                typeTimer.remove();
+                dialogText.text = lines[currentLine - 1];
+                isTyping = false;
+            } else {
+                showNextLine();
+            }
+        });
 
-    showNextLine();
+        showNextLine();
+    } else {
+        isDialogMode = false; // Par sécurité
+    }
 }
 
 function createLevelLayer(y) {
