@@ -54,6 +54,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const geolocScreen = document.getElementById('geoloc-screen');
     const geolocButton = document.getElementById('geoloc-button');
     const geolocStatus = document.getElementById('geoloc-status');
+    const showMapBtn = document.getElementById('show-map-btn');
+    const mapModal = document.getElementById('map-modal');
+    const closeMapBtn = document.getElementById('close-map-btn');
+    const mapContainer = document.getElementById('map-container');
+    
+    let lMap = null;
+    let lRouting = null;
+    let lMarker = null;
+
+    function buildLeafletMap(userLat, userLng) {
+        if (!lMap) {
+            lMap = L.map('leaflet-map');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(lMap);
+        }
+
+        if (lRouting) {
+            lRouting.remove();
+            lRouting = null;
+        }
+        if (lMarker) {
+            lMarker.remove();
+            lMarker = null;
+        }
+
+        if (userLat !== null && userLng !== null) {
+            lRouting = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLat, userLng),
+                    L.latLng(MUSEUM_LAT, MUSEUM_LNG)
+                ],
+                routeWhileDragging: false,
+                addWaypoints: false,
+                fitSelectedRoutes: false, // on désactive le dézoom massif
+                show: false, // masque les instructions textuelles
+                createMarker: function() { return null; } // on peut optionnellement cacher les marqueurs par defaut
+            }).addTo(lMap);
+            
+            // on remet quand meme des marqueurs sympas
+            L.marker([MUSEUM_LAT, MUSEUM_LNG]).addTo(lMap).bindPopup("Musée des Beaux-Arts");
+            L.marker([userLat, userLng]).addTo(lMap).bindPopup("Vous êtes ici !").openPopup();
+            
+            // On zoom direct sur l'utilisateur "cash"
+            lMap.setView([userLat, userLng], 17);
+        } else {
+            lMap.setView([MUSEUM_LAT, MUSEUM_LNG], 15);
+            lMarker = L.marker([MUSEUM_LAT, MUSEUM_LNG]).addTo(lMap)
+                .bindPopup("<b>Musée des Beaux-Arts</b><br>Mulhouse").openPopup();
+        }
+    }
+
+    if (showMapBtn) {
+        showMapBtn.addEventListener('click', () => {
+            mapModal.style.display = 'flex';
+            if (lMap) {
+                setTimeout(() => {
+                    lMap.invalidateSize();
+                }, 100);
+            }
+        });
+    }
+
+    if (closeMapBtn) {
+        closeMapBtn.addEventListener('click', () => {
+            mapModal.style.display = 'none';
+        });
+    }
     
     // Coordonnées du Musée des Beaux-Arts de Mulhouse
     const MUSEUM_LAT = 47.74583;
@@ -99,12 +167,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             geolocStatus.innerText = "Vous n'êtes pas au Musée des Beaux-Arts de Mulhouse.\nDistance trouvée : " + dist.toFixed(2) + " km\nRapprochez-vous pour jouer !";
                             geolocButton.style.display = 'block';
                             geolocButton.innerText = "Réessayer";
+                            if (showMapBtn) {
+                                showMapBtn.style.display = 'block';
+                                buildLeafletMap(userLat, userLng);
+                            }
                         }
                     },
                     (error) => {
                         geolocStatus.innerText = "Erreur : " + error.message + ".\nVeuillez vérifier vos autorisations de localisation et que votre GPS est activé.";
                         geolocButton.style.display = 'block';
                         geolocButton.innerText = "Réessayer";
+                        if (showMapBtn) {
+                            showMapBtn.style.display = 'block';
+                            buildLeafletMap(null, null);
+                        }
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
@@ -112,6 +188,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 geolocStatus.innerText = "La géolocalisation n'est pas supportée par votre navigateur.";
                 geolocButton.style.display = 'block';
                 geolocButton.innerText = "Réessayer";
+                if (showMapBtn) {
+                    showMapBtn.style.display = 'block';
+                    buildLeafletMap(null, null);
+                }
             }
         });
     }
